@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shot Clicker 🐦</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════ HEADER ══════════════ -->
+  <header id="hdr">
+    <div id="hdr-stats">
+      <span class="hstat">🔶 <b id="h-shells">0</b> douilles</span>
+      <span class="hstat">⚡ <b id="h-dpc">1</b>/clic</span>
+      <span class="hstat">⏩ <b id="h-dps">0</b>/s</span>
+      <span class="hstat">🪶 <b id="h-po">0</b> Plumes</span>
+      <span class="hstat">💎 <b id="h-pp">0</b> PP</span>
+      <span class="hstat">⏱️ <b id="h-time">0s</b></span>
+    </div>
+    <div id="hdr-actions">
+      <button id="prestige-btn" onclick="openPrestigeModal()" disabled>⭐ Prestige</button>
+      <button id="save-btn" onclick="saveGame(false)" title="Sauvegarder">💾</button>
+    </div>
+  </header>
+
+  <!-- ══════════════ NAVIGATION ══════════════ -->
+  <nav id="tab-nav">
+    <button class="tn active" data-tab="game">🎯 Jeu</button>
+    <button class="tn" data-tab="shop">🛒 Boutique</button>
+    <button class="tn" data-tab="inventory">🎒 Inventaire <span id="inv-badge" class="nbadge">0</span></button>
+    <button class="tn" data-tab="crafting">⚗️ Crafting</button>
+    <button class="tn" data-tab="market">📈 Marché</button>
+  </nav>
+
+  <!-- ══════════════ TAB : JEU ══════════════ -->
+  <div id="tab-game" class="tab-pane active">
+    <div id="game-wrap">
+
+      <div id="bg-units"></div>
+
+      <!-- Indicateur de fatigue de drop -->
+      <div id="fatigue-wrap">
+        <div id="fatigue-bar-bg"><div id="fatigue-bar-fill"></div></div>
+        <div id="fatigue-label">Session : 0h 0m / 4h</div>
+      </div>
+
+      <div id="range-area" onclick="handleClick(event)">
+
+        <!-- Pigeon (gauche) -->
+        <div id="pigeon-zone">
+          <div id="pigeon-body">
+            <span id="pigeon-emoji">🐦</span>
+            <span id="weapon-emoji" class="w0">🔫</span>
+          </div>
+          <div id="muzzle-flash"></div>
+          <div id="equipped-label"></div>
+        </div>
+
+        <!-- Cible (droite) -->
+        <div id="target-zone">
+          <div id="target-wrap">
+            <div id="target">
+              <div class="ring" id="r1"></div>
+              <div class="ring" id="r2"></div>
+              <div class="ring" id="r3"></div>
+              <div id="bullseye"></div>
+            </div>
+            <div id="bullet-holes"></div>
+          </div>
+          <div id="target-hp-bar"><div id="target-hp-fill"></div></div>
+        </div>
+
+        <!-- Texte flottant -->
+        <div id="float-layer"></div>
+
+      </div><!-- /range-area -->
+
+      <div id="decor-badge">🏚️ Cave Humide — ×1</div>
+
+    </div><!-- /game-wrap -->
+  </div>
+
+  <!-- ══════════════ TAB : BOUTIQUE ══════════════ -->
+  <div id="tab-shop" class="tab-pane">
+    <div id="shop-wrap">
+      <div class="s-sect"><h3>🔫 Armes</h3><div id="s-weapons"></div></div>
+      <div class="s-sect"><h3>💥 Munitions</h3><div id="s-ammo"></div><div id="s-dmgrank"></div></div>
+      <div class="s-sect"><h3>🐦 Unités Idle</h3><div id="s-units"></div></div>
+      <div class="s-sect"><h3>🏚️ Décor</h3><div id="s-decor"></div></div>
+      <div class="s-sect s-sect-pp">
+        <h3>💎 Plumes de Platine <small style="opacity:.6">(Monnaie Premium)</small></h3>
+        <p class="pp-explain">Utilisées pour le Crafting (1 PP par fusion). Valeur fixe : 10 PP = 1,00 €.<br>
+          <small style="opacity:.55">TODO: PROD → Steamworks Microtransaction API / Stripe</small></p>
+        <div id="s-pp"></div>
+      </div>
+      <div class="s-sect">
+        <h3>🪶 Compétences Permanentes <small style="opacity:.6">(Plumes d'Or)</small></h3>
+        <div id="s-skills"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ TAB : INVENTAIRE ══════════════ -->
+  <div id="tab-inventory" class="tab-pane">
+    <div id="inv-wrap">
+      <div id="inv-hdr">
+        <h2>🎒 Inventaire — <span id="inv-count">0</span> items</h2>
+        <p class="hint">Cliquez sur un skin pour l'équiper. L'arme du pigeon se met à jour en temps réel.</p>
+      </div>
+      <div id="inv-grid"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ TAB : CRAFTING ══════════════ -->
+  <div id="tab-crafting" class="tab-pane">
+    <div id="craft-wrap">
+      <h2>⚗️ Fusion de Skins</h2>
+      <p class="rule-txt">20 items de Rareté N + 1 💎 Plume de Platine → 1 item de Rareté N+1</p>
+      <div class="pp-craft-note">
+        <span id="pp-craft-balance">💎 Plumes de Platine disponibles : <b>0</b></span>
+        <span class="pp-craft-hint"> — achetez-en dans la Boutique</span>
+      </div>
+      <div id="craft-rarity-nav"></div>
+      <div id="craft-body">
+        <div id="craft-pool-area">
+          <div class="pool-label">Votre stock — cliquez pour sélectionner :</div>
+          <div id="craft-pool"></div>
+        </div>
+        <div id="craft-right">
+          <div id="craft-slots-grid"></div>
+          <div id="craft-info">0 / 20 sélectionnés</div>
+          <button id="craft-btn" onclick="executeCraft()" disabled>⚗️ FUSIONNER (1 💎)</button>
+        </div>
+      </div>
+      <div id="craft-log-wrap">
+        <div class="pool-label" style="margin-bottom:6px">Historique de fusion :</div>
+        <div id="craft-log"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ TAB : MARCHÉ ══════════════ -->
+  <div id="tab-market" class="tab-pane">
+    <div id="market-wrap">
+      <h2>📈 Marché Communautaire Simulé</h2>
+      <p class="market-sub">
+        Prix fluctuants toutes les 60s. ⭐ Collector ↗ | Classique ↘ | Formule 20→1 : hausse des items bas de gamme.<br>
+        Taxe éditeur simulée : <b>10%</b> par transaction.
+      </p>
+      <div id="market-filters">
+        <button class="mf active" data-f="all">Tous</button>
+        <button class="mf" data-f="common">Commun</button>
+        <button class="mf" data-f="uncommon">Peu Commun</button>
+        <button class="mf" data-f="rare">Rare</button>
+        <button class="mf" data-f="epic">Épique</button>
+        <button class="mf" data-f="legendary">Légendaire</button>
+        <button class="mf" data-f="extraordinary">Extraordinaire</button>
+      </div>
+      <div id="market-scroll">
+        <table id="market-tbl">
+          <thead><tr>
+            <th>Skin</th><th>Rareté</th><th>Type</th>
+            <th>Prix (€)</th><th>Tendance</th><th>En stock</th>
+          </tr></thead>
+          <tbody id="market-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ MODALE PRESTIGE ══════════════ -->
+  <div id="prestige-modal" class="modal hidden">
+    <div class="modal-box">
+      <h2>⭐ PRESTIGE</h2>
+      <p style="color:var(--dim);margin-bottom:16px">Réinitialisez votre partie pour des bonus permanents.</p>
+      <div id="prestige-info">
+        <div class="pi-row"><span>Plumes d'Or à recevoir</span><b id="pi-earn">0</b></div>
+        <div class="pi-row"><span>Total Plumes d'Or après prestige</span><b id="pi-after">0</b></div>
+        <div class="pi-row"><span>Prestige numéro</span><b id="pi-count">1</b></div>
+        <div class="pi-row"><span style="color:#ffd700">💎 Plumes de Platine (conservées)</span><b id="pi-pp">0</b></div>
+      </div>
+      <p class="modal-warn">⚠️ Douilles, upgrades et armes réinitialisés.<br>Skins, Plumes d'Or, PP et Compétences conservés.</p>
+      <div class="modal-btns">
+        <button class="btn-ok" onclick="doPrestige()">⭐ Confirmer le Prestige</button>
+        <button class="btn-no" onclick="closePrestigeModal()">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ NOTIFICATION DE DROP ══════════════ -->
+  <div id="drop-notif" class="hidden">
+    <div id="drop-card">
+      <div id="drop-rarity-tag"></div>
+      <div id="drop-skin-icon">🎁</div>
+      <div id="drop-skin-name"></div>
+      <div id="drop-skin-desc"></div>
+      <div id="drop-price-est"></div>
+      <button onclick="closeDrop()">✓ Récupérer</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="save-toast" class="hidden">💾 Sauvegardé !</div>
+
+</div><!-- /app -->
+<script src="script.js"></script>
+</body>
+</html>
