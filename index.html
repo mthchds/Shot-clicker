@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shot Clicker 🐦</title>
+  <title>Shot Clicker 🐦 v0.3</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
 
-  <!-- ══════════════ HEADER ══════════════ -->
+  <!-- ══ HEADER ══ -->
   <header id="hdr">
     <div id="hdr-stats">
       <span class="hstat">🔶 <b id="h-shells">0</b> douilles</span>
       <span class="hstat">⚡ <b id="h-dpc">1</b>/clic</span>
       <span class="hstat">⏩ <b id="h-dps">0</b>/s</span>
-      <span class="hstat">🪶 <b id="h-po">0</b> Plumes</span>
-      <span class="hstat">💎 <b id="h-pp">0</b> PP</span>
+      <span class="hstat">🪶 <b id="h-po">0</b> Plumes d'Or</span>
       <span class="hstat">⏱️ <b id="h-time">0s</b></span>
+      <span class="hstat" id="h-pity-wrap" style="display:none">🎰 Pity <b id="h-pity">0</b>/20</span>
     </div>
     <div id="hdr-actions">
       <button id="prestige-btn" onclick="openPrestigeModal()" disabled>⭐ Prestige</button>
@@ -25,7 +25,7 @@
     </div>
   </header>
 
-  <!-- ══════════════ NAVIGATION ══════════════ -->
+  <!-- ══ TAB NAV ══ -->
   <nav id="tab-nav">
     <button class="tn active" data-tab="game">🎯 Jeu</button>
     <button class="tn" data-tab="shop">🛒 Boutique</button>
@@ -38,27 +38,33 @@
   <div id="tab-game" class="tab-pane active">
     <div id="game-wrap">
 
+      <!-- Unités idle en arrière-plan -->
       <div id="bg-units"></div>
 
-      <!-- Indicateur de fatigue de drop -->
-      <div id="fatigue-wrap">
-        <div id="fatigue-bar-bg"><div id="fatigue-bar-fill"></div></div>
-        <div id="fatigue-label">Session : 0h 0m / 4h</div>
-      </div>
-
+      <!-- Zone de tir principale -->
       <div id="range-area" onclick="handleClick(event)">
 
-        <!-- Pigeon (gauche) -->
+        <!-- ── PIGEON (gauche) ── -->
         <div id="pigeon-zone">
-          <div id="pigeon-body">
-            <span id="pigeon-emoji">🐦</span>
-            <span id="weapon-emoji" class="w0">🔫</span>
+          <!--
+            #pigeon-sprite-container : conteneur principal animé
+            ├─ #pspr-body   : emoji pigeon (couche 1)
+            ├─ #pspr-gloves : gants (couche 2, caché par défaut)
+            └─ #pspr-weapon : arme + muzzle flash (couche 3)
+                └─ #muzzle-flash
+          -->
+          <div id="pigeon-sprite-container">
+            <div id="pspr-body">🐦</div>
+            <div id="pspr-gloves" class="hidden">🥊</div>
+            <div id="pspr-weapon">
+              <span id="pspr-weapon-emoji">🔫</span>
+              <div id="muzzle-flash"></div>
+            </div>
           </div>
-          <div id="muzzle-flash"></div>
           <div id="equipped-label"></div>
         </div>
 
-        <!-- Cible (droite) -->
+        <!-- ── CIBLE (droite) ── -->
         <div id="target-zone">
           <div id="target-wrap">
             <div id="target">
@@ -86,17 +92,14 @@
   <div id="tab-shop" class="tab-pane">
     <div id="shop-wrap">
       <div class="s-sect"><h3>🔫 Armes</h3><div id="s-weapons"></div></div>
-      <div class="s-sect"><h3>💥 Munitions</h3><div id="s-ammo"></div><div id="s-dmgrank"></div></div>
+      <div class="s-sect"><h3>💥 Munitions &amp; Rang</h3><div id="s-ammo"></div><div id="s-dmgrank"></div></div>
       <div class="s-sect"><h3>🐦 Unités Idle</h3><div id="s-units"></div></div>
       <div class="s-sect"><h3>🏚️ Décor</h3><div id="s-decor"></div></div>
-      <div class="s-sect s-sect-pp">
-        <h3>💎 Plumes de Platine <small style="opacity:.6">(Monnaie Premium)</small></h3>
-        <p class="pp-explain">Utilisées pour le Crafting (1 PP par fusion). Valeur fixe : 10 PP = 1,00 €.<br>
-          <small style="opacity:.55">TODO: PROD → Steamworks Microtransaction API / Stripe</small></p>
-        <div id="s-pp"></div>
-      </div>
       <div class="s-sect">
-        <h3>🪶 Compétences Permanentes <small style="opacity:.6">(Plumes d'Or)</small></h3>
+        <h3>🪶 Compétences Permanentes <small style="opacity:.55">(Plumes d'Or)</small></h3>
+        <p class="hint" style="margin-bottom:10px">
+          Serres &amp; Migration : 10 niveaux progressifs. Autres : achat unique.
+        </p>
         <div id="s-skills"></div>
       </div>
     </div>
@@ -107,7 +110,8 @@
     <div id="inv-wrap">
       <div id="inv-hdr">
         <h2>🎒 Inventaire — <span id="inv-count">0</span> items</h2>
-        <p class="hint">Cliquez sur un skin pour l'équiper. L'arme du pigeon se met à jour en temps réel.</p>
+        <p class="hint">Cliquez sur un skin pour l'équiper. Il modifie l'arme visible sur le pigeon,<br>
+          même après un Prestige (visuel conservé tant que l'arme n'est pas re-débloquée).</p>
       </div>
       <div id="inv-grid"></div>
     </div>
@@ -117,25 +121,27 @@
   <div id="tab-crafting" class="tab-pane">
     <div id="craft-wrap">
       <h2>⚗️ Fusion de Skins</h2>
-      <p class="rule-txt">20 items de Rareté N + 1 💎 Plume de Platine → 1 item de Rareté N+1</p>
-      <div class="pp-craft-note">
-        <span id="pp-craft-balance">💎 Plumes de Platine disponibles : <b>0</b></span>
-        <span class="pp-craft-hint"> — achetez-en dans la Boutique</span>
+      <p class="rule-txt">20 items de Rareté N + 1 🪶 Plume d'Or → 1 item de Rareté N+1</p>
+      <div class="ticket-note">
+        🪶 <b>Coût : 20 items + 1 Plume d'Or</b> par fusion<br>
+        <small style="opacity:.55">Probabilité de Collector doublée via craft vs drop natif · TODO PROD: swap 1 PO → 0,10 € (Steamworks)</small>
       </div>
       <div id="craft-rarity-nav"></div>
       <div id="craft-body">
         <div id="craft-pool-area">
-          <div class="pool-label">Votre stock — cliquez pour sélectionner :</div>
+          <div class="pool-label">Votre stock (cliquez pour sélectionner) :</div>
           <div id="craft-pool"></div>
         </div>
         <div id="craft-right">
           <div id="craft-slots-grid"></div>
           <div id="craft-info">0 / 20 sélectionnés</div>
-          <button id="craft-btn" onclick="executeCraft()" disabled>⚗️ FUSIONNER (1 💎)</button>
+          <button id="craft-btn" onclick="executeCraft()" disabled>
+            ⚗️ FUSIONNER (20 items · 1 🪶)
+          </button>
         </div>
       </div>
       <div id="craft-log-wrap">
-        <div class="pool-label" style="margin-bottom:6px">Historique de fusion :</div>
+        <div class="pool-label" style="margin-bottom:6px">Historique :</div>
         <div id="craft-log"></div>
       </div>
     </div>
@@ -146,8 +152,8 @@
     <div id="market-wrap">
       <h2>📈 Marché Communautaire Simulé</h2>
       <p class="market-sub">
-        Prix fluctuants toutes les 60s. ⭐ Collector ↗ | Classique ↘ | Formule 20→1 : hausse des items bas de gamme.<br>
-        Taxe éditeur simulée : <b>10%</b> par transaction.
+        Prix fluctuants toutes les 60s. ⭐ Collector ↗ | Classique ↘.
+        Taxe éditeur simulée : <b>10%</b>.
       </p>
       <div id="market-filters">
         <button class="mf active" data-f="all">Tous</button>
@@ -174,16 +180,18 @@
   <div id="prestige-modal" class="modal hidden">
     <div class="modal-box">
       <h2>⭐ PRESTIGE</h2>
-      <p style="color:var(--dim);margin-bottom:16px">Réinitialisez votre partie pour des bonus permanents.</p>
+      <p style="color:var(--dim);margin-bottom:16px">Réinitialisez votre progression pour obtenir des Plumes d'Or permanentes.</p>
       <div id="prestige-info">
         <div class="pi-row"><span>Plumes d'Or à recevoir</span><b id="pi-earn">0</b></div>
-        <div class="pi-row"><span>Total Plumes d'Or après prestige</span><b id="pi-after">0</b></div>
-        <div class="pi-row"><span>Prestige numéro</span><b id="pi-count">1</b></div>
-        <div class="pi-row"><span style="color:#ffd700">💎 Plumes de Platine (conservées)</span><b id="pi-pp">0</b></div>
+        <div class="pi-row"><span>Total après prestige</span><b id="pi-after">0</b></div>
+        <div class="pi-row"><span>Numéro de prestige</span><b id="pi-count">1</b></div>
       </div>
-      <p class="modal-warn">⚠️ Douilles, upgrades et armes réinitialisés.<br>Skins, Plumes d'Or, PP et Compétences conservés.</p>
+      <p class="modal-warn">
+        ⚠️ Douilles, upgrades et armes réinitialisés.<br>
+        Skins, Plumes d'Or, Compétences et Skin équipé sont conservés.
+      </p>
       <div class="modal-btns">
-        <button class="btn-ok" onclick="doPrestige()">⭐ Confirmer le Prestige</button>
+        <button class="btn-ok" onclick="doPrestige()">⭐ Confirmer</button>
         <button class="btn-no" onclick="closePrestigeModal()">Annuler</button>
       </div>
     </div>
@@ -201,7 +209,24 @@
     </div>
   </div>
 
-  <!-- Toast -->
+  <!-- ══════════════ MODALE CRAFT SUCCESS ══════════════ -->
+  <div id="craft-success" class="hidden">
+    <div id="cs-backdrop" onclick="closeCraftSuccess()"></div>
+    <div id="cs-card">
+      <div id="cs-badge">⚗️ FUSION RÉUSSIE !</div>
+      <div id="cs-rarity-tag"></div>
+      <div id="cs-weapon-icon">🔫</div>
+      <div id="cs-skin-name"></div>
+      <div id="cs-skin-type"></div>
+      <div id="cs-skin-desc"></div>
+      <div id="cs-price-row"></div>
+      <div id="cs-glow-ring"></div>
+      <button onclick="closeCraftSuccess()">✓ Ajouter à l'inventaire</button>
+      <div id="cs-auto">Fermeture dans <span id="cs-cd">4</span>s</div>
+    </div>
+  </div>
+
+  <!-- Toast sauvegarde -->
   <div id="save-toast" class="hidden">💾 Sauvegardé !</div>
 
 </div><!-- /app -->
